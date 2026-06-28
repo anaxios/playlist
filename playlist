@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+
+set -e
+
+EXTENSIONS=(
+    3gp
+    asf
+    avi
+    flv
+    m2ts
+    m4a
+    m4v
+    mkv
+    mov
+    mp3
+    mp4
+    mpg
+    mts
+    nsc
+    nsv
+    nut
+    ra
+    ram
+    rm
+    rv
+    ts
+    ty
+    webm
+    wmv
+)
+
+REQUIRES=( recins jq yt-dlp )
+PL_FILE="./playlist.rec"
+
+is_playable() { [[ "${EXTENSIONS[*]}" =~ "${1##*.}" ]]; }
+#is_installed() { [[ "${REQUIRES[*]}" =~ "${1}" ]]; }
+
+get_title() { printf '%s\n' "$(basename "${1%.*}")"; }
+get_ext() { printf '%s\n' "${1##*.}"; }
+
+get_playlist_title() {
+    printf '%s\n' "$(basename "$(dirname "$1")")";
+}
+
+get_author() {
+    printf '%s\n' "$(basename "$(dirname "$(dirname "$1")")")";
+}
+
+preflight() {
+    :
+}
+
+add_playlist() {
+    local title="$1"; shift
+    #local link="$1"; shift
+    if [[ -n "$(recsel -t Playlist -e "Title = '${title//\'/\\\'}'" "${PL_FILE}" )" ]]; then
+        return
+    fi
+        #-f Playlist -v "${playlist}" \
+    recins -t Playlist \
+        -f Title -v "${title}" \
+        "${PL_FILE}"
+}
+
+get_playlist_id() {
+    local title="$1"; shift
+    recsel -t Playlist \
+        -e "Title = '${title}'" \
+        -P Id \
+        "${PL_FILE}"
+}
+
+add_video() {
+    local title="$1"; shift
+    local author="$1"; shift
+    local location="$1"; shift
+    local playlist="$1"; shift
+    if [[ -n "$(recsel -t Videos -e "Title = '${title//\'/\\\'}'" "${PL_FILE}" )" ]]; then
+        return
+    fi
+    recins --verbose -t Videos \
+        -f Title -v "${title}" \
+        -f Author -v "${author}" \
+        -f Location -v "${location}" \
+        -f Status -v "NOT_WATCHED" \
+        -f Playlist -v "${playlist}" \
+        "${PL_FILE}"
+}
+
+main() {
+    local d="/Volumes/DOOM"
+    local d="/Volumes/DOOM/transmission/Stargate SG-1 (1994) Season 1-10 S01-10 (1080p BluRay x265 HEVC 10bit DD 5.1 EDGE2020)"
+    shopt -s globstar
+    for video in "$d"/**; do
+        if is_playable "${video}"; then
+            #echo "${video}"
+            echo "Adding:" "$(get_title "$video")"
+            #echo "$(get_playlist_title "$video")"
+            #echo "$(get_author "$video")"
+            add_playlist "$(get_playlist_title "$video")"
+            add_video \
+                "$(get_title "$video")" \
+                "$(get_author "$video")" \
+                "$video" \
+                "$(get_playlist_id "$(get_playlist_title "$video")")"
+        fi
+    done
+}; main "$@"

@@ -1,0 +1,21 @@
+%rec: Videos
+%typedef: Id_YouTube_t regexp /[-\_A-za-z0-9]{11}]/
+%typedef: Status_t enum STARTED WATCHED NOT_WATCHED
+%mandatory: Title
+%auto: Id
+%key: Id
+%type: Id_YouTube Id_YouTube_t
+%type: md5 line
+%type: Status Status_t
+%type: Watched_date date
+%type: Location line
+%type: Playlist rec Playlist
+%type: Author line
+
+
+%rec: Playlist
+%mandatory: Title
+%auto: Id
+%key: Id
+%type: Link line
+
