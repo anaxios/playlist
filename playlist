@@ -2,8 +2,6 @@
 
 set -e
 
-#source ~/.bsl/bsl.bash
-
 # shellcheck disable=2034
 bsl_CYAN="\033[1;96m"
 bsl_RED="\033[0;91m"
@@ -13,60 +11,134 @@ bsl_CYAN="\033[1;96m"
 bsl_GREEN="\033[0;92m"
 bsl_RESET='\033[0m'
 
+bsl_is_int() { [[ $1 =~ ^-?[1-9]+[0-9]?$ ]]; }
+bsl_is_dir() { [[ -d $1 ]]; }
+bsl_is_file() { [[ -f $1 ]]; }
+bsl_is_empty() { [[ -z $1 ]]; }
+bsl_is_not_empty() { [[ -n $1 ]]; }
+bsl_is_set() { [[ -v $1 ]]; }
+bsl_eq() { [[ "$1" == "$2" ]]; }
+bsl_eq_int() { [[ "$1" -eq "$2" ]]; }
+
 bsl_die() {
-    echo -e "${bsl_RED}ERROR:${bsl_RESET}" "$@" >&2
-    exit 1
+	echo -e "${bsl_RED}ERROR:${bsl_RESET}" "$@" >&2
+	exit 1
 }
 
 
 bsl_panic() {
-    bsl_die "$@"
+	bsl_die "$@"
+}
+
+bsl_left_pad() {
+	# $1 string to pad,
+	# $2 is desired length,
+	# $3 option thing to pad with
+	local p=${3:-0}
+	local len=${2:-0}
+	local x=$1
+	while (( "${#x}" < "$len" )); do
+		x="$p$x"
+	done
+	echo "$x"
+}
+
+bsl_swap() {
+	# shellcheck disable=2034
+	local -n array_swap=$1
+	local first=$2
+	local second=$3
+	local tmp="${array_swap[first]}"
+	array_swap[first]="${array_swap[second]}"
+	array_swap[second]="$tmp"
+}
+
+bsl_reverse() {
+	# shellcheck disable=2034
+	local -n array_reverse=$1
+	local -a array_reverse_len="${#array_reverse[@]}"
+	local first=${2:-0}
+	local last=${3:-$array_reverse_len}
+
+	while ((first < --last)); do
+		bsl_swap array_reverse "$first" "$last"
+		((++first))
+	done
+}
+
+bsl_rotate() {
+	# shellcheck disable=2034
+	local -n array_rotate=$1
+	#local array_rotate_len="${#array_rotate[@]}"
+	local first=${2:-0}
+	local middle=${3:-0}
+	local last=${4:-0}
+	if [[ $middle -gt $first && $middle -lt $last ]]; then
+		bsl_reverse array_rotate "$first" "$middle"
+		bsl_reverse array_rotate "$middle" "$last"
+		bsl_reverse array_rotate "$first" "$last"
+	fi
+}
+
+bsl_slide() {
+	# shellcheck disable=2034
+	local -n array_slide=$1
+	#local array_slide_len="${#array_slide[@]}"
+	local first=${2}
+	local last=${3}
+	local pivot=${4}
+	if [[ $pivot -lt $first ]]; then
+		bsl_rotate array_slide "$pivot" "$first" "$last"
+	fi
+	if [[ $last -lt $pivot ]]; then
+		bsl_rotate array_slide "$first" "$last" "$pivot"
+	fi
 }
 
 preflight() {
-    if [[ ! $(which vlc) ]]; then
-        echo "vlc executable cannot be found."
-        echo "install vlc to use this script."
-        exit 1
-    fi
+	if [[ ! $(which vlc) ]]; then
+		echo "vlc executable cannot be found."
+		echo "install vlc to use this script."
+		exit 1
+	fi
 
-    #if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    #    # ...
-    #    IS_MAC=0
-    #    # TODO make stat,sed,date,etc. functions to make this work cross platform
-    #elif [[ "$OSTYPE" == "darwin"* ]]; then
-    #    # Mac OSX
-    #    IS_MAC=1
-    #fi
+	#if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+	#    # ...
+	#    IS_MAC=0
+	#    # TODO make stat,sed,date,etc. functions to make this work cross platform
+	#elif [[ "$OSTYPE" == "darwin"* ]]; then
+	#    # Mac OSX
+	#    IS_MAC=1
+	#fi
 
 	trap cleanup SIGINT EXIT
 
 	declare -gra EXTENSIONS=(
-		3gp
-		asf
-		avi
-		flv
-		m2ts
-		m4a
-		m4v
-		mkv
-		mov
-		mp3
-		mp4
-		mpg
-		mts
-		nsc
-		nsv
-		nut
-		ra
-		ram
-		rm
-		rv
-		ts
-		ty
-		webm
-		wmv
-	)
+	3gp
+	asf
+	avi
+	flv
+	m2ts
+	m4a
+	m4v
+	mkv
+	mov
+	mp3
+	mp4
+	mpg
+	mts
+	nsc
+	nsv
+	nut
+	ra
+	ram
+	rm
+	rv
+	ts
+	ty
+	webm
+	wmv
+)
 
 	# bitfields
 	declare -gr WATCHED=1
@@ -87,385 +159,385 @@ preflight() {
 }
 
 cleanup() {
-    if ps -p $PLAYER_PID > /dev/null; then
-        kill "$PLAYER_PID"
-    fi
-    exit 1
+	if ps -p $PLAYER_PID > /dev/null; then
+		kill "$PLAYER_PID"
+	fi
+	exit 1
 }
 
 is_indexed() { [[ "$1" =~ $INDEX_PREFIX_REGEX_V3 ]]; }
 
 is_playable() {
-    local name
-    name="$(basename "$1")" || bsl_die
-    local extention="${name##*.}"
-    [[ "${EXTENSIONS[*]}" =~ $extention ]]
+	local name
+	name="$(basename "$1")" || bsl_die
+	local extention="${name##*.}"
+	[[ "${EXTENSIONS[*]}" =~ $extention ]]
 }
 
 is_watched() {
-    local video=$1
-    if [[ "$video" =~ $INDEX_PREFIX_REGEX_V3 ]]; then
-        [[ 1 == $(( BASH_REMATCH[BITMASK_V3] & WATCHED )) ]]
-    fi
+	local video=$1
+	if [[ "$video" =~ $INDEX_PREFIX_REGEX_V3 ]]; then
+		[[ 1 == $(( BASH_REMATCH[BITMASK_V3] & WATCHED )) ]]
+	fi
 }
 
 mark_watched() {
-    local playlist=()
-    load_indexed_files playlist
-    local playlist_len=${#playlist[@]}
-    local first=$1
-    local last=$1
-    local to=$2
-    if [[ -z "$first" ]]; then
-        bsl_panic "needs an index number or range e.g. 1-5";
-    fi
-    if [[ $last =~ (^[0-9]+)-([0-9]+$) ]]; then
-        first=${BASH_REMATCH[1]}
-        last=${BASH_REMATCH[2]}
-    fi
-    first=$((first - 1))
-    last=$((last - 1))
-    if ! [[ 0 -le $first && $first -le $last && $last -lt $playlist_len ]]; then
-        bsl_panic "Out of range"
-    fi
-    if [[ $first -le $last ]]; then
-        for i in $(seq $first $last); do
-            if [[ "${playlist[i]}" =~ $INDEX_PREFIX_REGEX_V3 ]]; then
-                local b
-                b=$(printf "%02X" $(( BASH_REMATCH[BITMASK_V3] | WATCHED )) ) || bsl_die
-                mv "${playlist[i]}" \
-                    "${BASH_REMATCH[INDEX_V3]} $b [${BASH_REMATCH[ID_V3]}]${BASH_REMATCH[NAME_V3]}"
-            fi
-            echo -e "${bsl_RED}MARKED:${bsl_RESET}" "${playlist[i]}"
-        done
-    fi
+	local playlist=()
+	load_indexed_files playlist
+	local playlist_len=${#playlist[@]}
+	local first=$1
+	local last=$1
+	local to=$2
+	if [[ -z "$first" ]]; then
+		bsl_panic "needs an index number or range e.g. 1-5";
+	fi
+	if [[ $last =~ (^[0-9]+)-([0-9]+$) ]]; then
+		first=${BASH_REMATCH[1]}
+		last=${BASH_REMATCH[2]}
+	fi
+	first=$((first - 1))
+	last=$((last - 1))
+	if ! [[ 0 -le $first && $first -le $last && $last -lt $playlist_len ]]; then
+		bsl_panic "Out of range"
+	fi
+	if [[ $first -le $last ]]; then
+		for i in $(seq $first $last); do
+			if [[ "${playlist[i]}" =~ $INDEX_PREFIX_REGEX_V3 ]]; then
+				local b
+				b=$(printf "%02X" $(( BASH_REMATCH[BITMASK_V3] | WATCHED )) ) || bsl_die
+				mv "${playlist[i]}" \
+					"${BASH_REMATCH[INDEX_V3]} $b [${BASH_REMATCH[ID_V3]}]${BASH_REMATCH[NAME_V3]}"
+			fi
+			echo -e "${bsl_RED}MARKED:${bsl_RESET}" "${playlist[i]}"
+		done
+	fi
 }
 
 unmark_watched() {
-    local playlist=()
-    load_indexed_files playlist
-    local playlist_len=${#playlist[@]}
-    local first=$1
-    local last=$1
-    local to=$2
-    if [[ -z "$first" ]]; then
-        bsl_panic "needs an index number or range e.g. 1-5";
-    fi
-    if [[ $last =~ (^[0-9]+)-([0-9]+$) ]]; then
-        first=${BASH_REMATCH[1]}
-        last=${BASH_REMATCH[2]}
-    fi
-    first=$((first - 1))
-    last=$((last - 1))
-    if ! [[ 0 -le $first && $first -le $last && $last -lt $playlist_len ]]; then
-        bsl_panic "Out of range"
-    fi
-    if [[ $first -le $last ]]; then
-        for i in $(seq $first $last); do
-            if [[ "${playlist[i]}" =~ $INDEX_PREFIX_REGEX_V3 ]]; then
-                local b
-                b=$(printf "%02X" $(( BASH_REMATCH[BITMASK_V3] & ~WATCHED )) ) || bsl_die
-                mv "${playlist[i]}" \
-                    "${BASH_REMATCH[INDEX_V3]} $b [${BASH_REMATCH[ID_V3]}]${BASH_REMATCH[NAME_V3]}"
-            fi
-            echo -e "${bsl_RED}UNMARKED:${bsl_RESET}" "${playlist[i]}"
-        done
-    fi
+	local playlist=()
+	load_indexed_files playlist
+	local playlist_len=${#playlist[@]}
+	local first=$1
+	local last=$1
+	local to=$2
+	if [[ -z "$first" ]]; then
+		bsl_panic "needs an index number or range e.g. 1-5";
+	fi
+	if [[ $last =~ (^[0-9]+)-([0-9]+$) ]]; then
+		first=${BASH_REMATCH[1]}
+		last=${BASH_REMATCH[2]}
+	fi
+	first=$((first - 1))
+	last=$((last - 1))
+	if ! [[ 0 -le $first && $first -le $last && $last -lt $playlist_len ]]; then
+		bsl_panic "Out of range"
+	fi
+	if [[ $first -le $last ]]; then
+		for i in $(seq $first $last); do
+			if [[ "${playlist[i]}" =~ $INDEX_PREFIX_REGEX_V3 ]]; then
+				local b
+				b=$(printf "%02X" $(( BASH_REMATCH[BITMASK_V3] & ~WATCHED )) ) || bsl_die
+				mv "${playlist[i]}" \
+					"${BASH_REMATCH[INDEX_V3]} $b [${BASH_REMATCH[ID_V3]}]${BASH_REMATCH[NAME_V3]}"
+			fi
+			echo -e "${bsl_RED}UNMARKED:${bsl_RESET}" "${playlist[i]}"
+		done
+	fi
 }
 
 play() {
-    local rate="${1:-$RATE}"
-    local playlist=()
-    load_indexed_files playlist
-    local playlist_len=${#playlist[@]}
-    for video in "${playlist[@]}"; do
-        local marked=0
-        if ! is_watched "$video"; then
-            vlc -f --rate "$rate" "$video" --extraintf=http --http-password=1234 2> /dev/null &
-            PLAYER_PID=$!
-            local prev_time=0
-            sleep 1
-            local stats
-            stats="$(curl -s -u :1234 http://127.0.0.1:8080/requests/status.xml)" || bsl_die
-            stats="$(curl -s -u :1234 http://127.0.0.1:8080/requests/status.xml)" || bsl_die
-            local length
-            length="$(sed -n 's@.*<length>\(.*\)</length>.*@\1@p' <<< "$stats")" || bsl_die
-            while true; do
-                sleep 1
-                stats="$(curl -s -u :1234 http://127.0.0.1:8080/requests/status.xml)"
-                local state
-                state="$(sed -n 's@.*<state>\(.*\)</state>.*@\1@p' <<< "$stats")" || bsl_die
+	local rate="${1:-$RATE}"
+	local playlist=()
+	load_indexed_files playlist
+	local playlist_len="${#playlist[@]}"
+	for video in "${playlist[@]}"; do
+		local marked=0
+		if ! is_watched "$video"; then
+			vlc -f --rate "$rate" "$video" --extraintf=http --http-password=1234 2> /dev/null &
+			PLAYER_PID=$!
+			local prev_time=0
+			sleep 1
+			local stats
+			stats="$(curl -s -u :1234 http://127.0.0.1:8080/requests/status.xml)" || bsl_die
+			stats="$(curl -s -u :1234 http://127.0.0.1:8080/requests/status.xml)" || bsl_die
+			local length
+			length="$(sed -n 's@.*<length>\(.*\)</length>.*@\1@p' <<< "$stats")" || bsl_die
+			while true; do
+				sleep 1
+				stats="$(curl -s -u :1234 http://127.0.0.1:8080/requests/status.xml)"
+				local state
+				state="$(sed -n 's@.*<state>\(.*\)</state>.*@\1@p' <<< "$stats")" || bsl_die
 				local time
-                time="$(sed -n 's@.*<time>\(.*\)</time>.*@\1@p' <<< "$stats")" || bsl_die
-                if [[ $((length - time)) -le 60 && $marked == 0 ]]; then
-                    if [[ $video =~ $INDEX_PREFIX_REGEX_V3 ]]; then
-                        local n=$(( 10#${BASH_REMATCH[INDEX_V3]} ))
-                        mark_watched $n
-                        marked=1
-                    fi
-                fi
+				time="$(sed -n 's@.*<time>\(.*\)</time>.*@\1@p' <<< "$stats")" || bsl_die
+				if [[ $((length - time)) -le 60 && $marked == 0 ]]; then
+					if [[ $video =~ $INDEX_PREFIX_REGEX_V3 ]]; then
+						local n=$(( 10#${BASH_REMATCH[INDEX_V3]} ))
+						mark_watched $n
+						marked=1
+					fi
+				fi
 
-                if [[ "stopped" == "$state" ]]; then
-                    marked=0
-                    kill "$PLAYER_PID"
-                    break
-                fi
+				if [[ "stopped" == "$state" ]]; then
+					marked=0
+					kill "$PLAYER_PID"
+					break
+				fi
 
-                if [[ -z "$state" ]]; then
-                    if ps -p $PLAYER_PID > /dev/null; then
-                        kill "$PLAYER_PID"
-                    fi
-                    exit
-                fi
-                time=$prev_time
-            done
-        fi
-        continue
-    done
+				if [[ -z "$state" ]]; then
+					if ps -p $PLAYER_PID > /dev/null; then
+						kill "$PLAYER_PID"
+					fi
+					exit
+				fi
+				time=$prev_time
+			done
+		fi
+		continue
+	done
 }
 
 playlist_print() {
-    local playlist=()
-    load_indexed_files playlist
-    for video in "${playlist[@]}"; do
-        if [[ "$video" =~ $INDEX_PREFIX_REGEX_V3 ]]; then
-            local index="${BASH_REMATCH[INDEX_V3]}"
-            local name="${BASH_REMATCH[NAME_V3]}"
-            local watched
-            if is_watched "$video"; then
-                watched="W"
-            else
-                watched="-"
-            fi
-            echo "$index $watched$name"
-        fi
-    done
+	local playlist=()
+	load_indexed_files playlist
+	for video in "${playlist[@]}"; do
+		if [[ "$video" =~ $INDEX_PREFIX_REGEX_V3 ]]; then
+			local index="${BASH_REMATCH[INDEX_V3]}"
+			local name="${BASH_REMATCH[NAME_V3]}"
+			local watched
+			if is_watched "$video"; then
+				watched="W"
+			else
+				watched="-"
+			fi
+			echo "$index $watched$name"
+		fi
+	done
 }
 
 load_files() {
-    # loads video files into array reference
-    local -n array_load_files=$1
-    local d="${2:-$WORK_DIR}"
-    for i in "$d/"*; do
-        if is_playable "$i"; then
-            array_load_files+=( "$(basename "$i")" )
-        fi
-    done
+	# loads video files into array reference
+	local -n array_load_files=$1
+	local d="${2:-$WORK_DIR}"
+	for i in "$d/"*; do
+		if is_playable "$i"; then
+			array_load_files+=( "$(basename "$i")" )
+		fi
+	done
 }
 
 load_indexed_files() {
-    # loads video files into array reference
-    local -n array_load_indexed_files=$1
-    local d="${2:-$WORK_DIR}"
-    for i in "$d/"*; do
-        local j
-        j="$(basename "$i")" || bsl_die
-        if is_playable "$j" && is_indexed "$j"; then
-            array_load_indexed_files+=( "$(basename "$j")" )
-        fi
-    done
+	# loads video files into array reference
+	local -n array_load_indexed_files=$1
+	local d="${2:-$WORK_DIR}"
+	for i in "$d/"*; do
+		local j
+		j="$(basename "$i")" || bsl_die
+		if is_playable "$j" && is_indexed "$j"; then
+			array_load_indexed_files+=( "$(basename "$j")" )
+		fi
+	done
 }
 
 reconsile_index_prefixs() {
-    local -n array_reconsile_index=$1
+	local -n array_reconsile_index=$1
 
-    for i in "${!array_reconsile_index[@]}"; do
-        if [[ "${array_reconsile_index[i]}" =~ $INDEX_PREFIX_REGEX_V3 ]]; then
-            if [[ "${BASH_REMATCH[INDEX_V3]}" != "$(bsl_left_pad $((1 + i)) 3)" ]]; then
-                mv "${array_reconsile_index[i]}" \
-                    "$(bsl_left_pad $((1 + i)) 3) ${BASH_REMATCH[BITMASK_V3]} [${BASH_REMATCH[ID_V3]}]${BASH_REMATCH[NAME_V3]}"
-            fi
-        fi
-    done
+	for i in "${!array_reconsile_index[@]}"; do
+		if [[ "${array_reconsile_index[i]}" =~ $INDEX_PREFIX_REGEX_V3 ]]; then
+			if [[ "${BASH_REMATCH[INDEX_V3]}" != "$(bsl_left_pad $((1 + i)) 3)" ]]; then
+				mv "${array_reconsile_index[i]}" \
+					"$(bsl_left_pad $((1 + i)) 3) ${BASH_REMATCH[BITMASK_V3]} [${BASH_REMATCH[ID_V3]}]${BASH_REMATCH[NAME_V3]}"
+			fi
+		fi
+	done
 }
 
 move_item() {
-    if [[ -z "$1" || -z "$2" ]]; then bsl_panic "needs two numbers"; fi
-    local playlist=()
-    load_indexed_files playlist
-    local playlist_len=${#playlist[@]}
-    local first=$1
-    local last=$1
-    local to=$2
-    if [[ $last =~ (^[0-9]+)-([0-9]+$) ]]; then
-        first=${BASH_REMATCH[1]}
-        last=${BASH_REMATCH[2]}
-    fi
-    first=$((first - 1))
-    if [[ $to -lt $first ]]; then
-        to=$((to - 1))
-    fi
-    bsl_slide playlist "$first" "$last" "$to"
-    reconsile_index_prefixs playlist
+	if [[ -z "$1" || -z "$2" ]]; then bsl_panic "needs two numbers"; fi
+	local playlist=()
+	load_indexed_files playlist
+	local playlist_len=${#playlist[@]}
+	local first=$1
+	local last=$1
+	local to=$2
+	if [[ $last =~ (^[0-9]+)-([0-9]+$) ]]; then
+		first=${BASH_REMATCH[1]}
+		last=${BASH_REMATCH[2]}
+	fi
+	first=$((first - 1))
+	if [[ $to -lt $first ]]; then
+		to=$((to - 1))
+	fi
+	bsl_slide playlist "$first" "$last" "$to"
+	reconsile_index_prefixs playlist
 }
 
 reverse() {
-    local playlist=()
-    load_indexed_files playlist
-    local playlist_len=${#playlist[@]}
-    bsl_reverse playlist 0 "$playlist_len"
-    reconsile_index_prefixs playlist
+	local playlist=()
+	load_indexed_files playlist
+	local playlist_len=${#playlist[@]}
+	bsl_reverse playlist 0 "$playlist_len"
+	reconsile_index_prefixs playlist
 }
 
 make_playlist() {
-    local playlist=()
-    load_files playlist
-    local malformed_prefix_regex='(^[0-9]+)[[:space:]]-[[:space:]]'
+	local playlist=()
+	load_files playlist
+	local malformed_prefix_regex='(^[0-9]+)[[:space:]]-[[:space:]]'
 
-    for i in "${!playlist[@]}"; do
-        [[ "${playlist[i]}" =~ $INDEX_PREFIX_REGEX_V3 ]] && continue
+	for i in "${!playlist[@]}"; do
+		[[ "${playlist[i]}" =~ $INDEX_PREFIX_REGEX_V3 ]] && continue
 
-        if [[ "${playlist[i]}" =~ $INDEX_PREFIX_REGEX_V2 ]]; then
-            mv "${playlist[i]}" \
-                "$(bsl_left_pad $((1 + i)) 3) 00 [${BASH_REMATCH[2]}]${BASH_REMATCH[3]}"
-        elif [[ "${playlist[i]}" =~ $malformed_prefix_regex(.*)$ ]]; then
-            mv "${playlist[i]}" \
-                "$(bsl_left_pad $((1 + i)) 3) 00 [00000000000] ${BASH_REMATCH[2]}"
-        else
-            mv "${playlist[i]}" \
-                "$(bsl_left_pad $((1 + i)) 3) 00 [00000000000] ${playlist[i]}"
-            #"$(bsl_left_pad ${BASH_REMATCH[1]} 3) - ${BASH_REMATCH[2]}"
-        fi
-    done
+		if [[ "${playlist[i]}" =~ $INDEX_PREFIX_REGEX_V2 ]]; then
+			mv "${playlist[i]}" \
+				"$(bsl_left_pad $((1 + i)) 3) 00 [${BASH_REMATCH[2]}]${BASH_REMATCH[3]}"
+						elif [[ "${playlist[i]}" =~ $malformed_prefix_regex(.*)$ ]]; then
+							mv "${playlist[i]}" \
+								"$(bsl_left_pad $((1 + i)) 3) 00 [00000000000] ${BASH_REMATCH[2]}"
+														else
+															mv "${playlist[i]}" \
+																"$(bsl_left_pad $((1 + i)) 3) 00 [00000000000] ${playlist[i]}"
+																															#"$(bsl_left_pad ${BASH_REMATCH[1]} 3) - ${BASH_REMATCH[2]}"
+		fi
+	done
 }
 
 help_parse() {
-    echo "USEAGE: playlist <COMMAND> [ARGS]"
-    echo
-    echo "DESCRIPTION:"
-    echo -e "   Plays video files in the current working directory and marks them into a file to keep track of previously played videos."
-    echo
-    echo "COMMANDS:"
-    local line
-    local start
-    while read -r line; do
-        if [[ "#START_HELP" == "$line" ]]; then
-           start=1
-        fi
-        if [[ "#END_HELP" == "$line" ]]; then
-           break
-        fi
-        if [[ 1 -ne $start ]]; then
-            continue
-        fi
-        if [[ "$line" =~ (^.+\) \#) ]]; then
-            echo -e "  " "$(sed -E 's/#/\t/; s/\)//; s/\|/,/g'  <<< "$line")"
-        fi
-    done < "$1"
+	echo "USEAGE: playlist <COMMAND> [ARGS]"
+	echo
+	echo "DESCRIPTION:"
+	echo -e "   Plays video files in the current working directory and marks them into a file to keep track of previously played videos."
+	echo
+	echo "COMMANDS:"
+	local line
+	local start
+	while read -r line; do
+		if [[ "#START_HELP" == "$line" ]]; then
+			start=1
+		fi
+		if [[ "#END_HELP" == "$line" ]]; then
+			break
+		fi
+		if [[ 1 -ne $start ]]; then
+			continue
+		fi
+		if [[ "$line" =~ (^.+\) \#) ]]; then
+			echo -e "  " "$(sed -E 's/#/\t/; s/\)//; s/\|/,/g'  <<< "$line")"
+		fi
+	done < "$1"
 }
 
 download() {
-    local items="${1:--I 1:}"
+	local items="${1:--I 1:}"
 
-    [[ -s "./PLAYLIST_DOWNLOAD_LINK" ]] || bsl_die "Playlist link cannot be found."
+	[[ -s "./PLAYLIST_DOWNLOAD_LINK" ]] || bsl_die "Playlist link cannot be found."
 
-    local link
-    link="$(cat "./PLAYLIST_DOWNLOAD_LINK")" || bsl_die
+	local link
+	link="$(cat "./PLAYLIST_DOWNLOAD_LINK")" || bsl_die
 
-    local yt_json
+	local yt_json
 	# shellcheck disable=2155
-    local yt_json="$(yt-dlp --flat-playlist --skip-download --dump-json --cookies-from-browser firefox "$link" | jq -s '.')" || bsl_die
-    local yt_json_len
-    yt_json_len=$(jq 'length' <<< "$yt_json") || bsl_die
+	local yt_json="$(yt-dlp --flat-playlist --skip-download --dump-json --cookies-from-browser firefox "$link" | jq -s '.')" || bsl_die
+	local yt_json_len
+	yt_json_len=$(jq 'length' <<< "$yt_json") || bsl_die
 
-    local playlist=()
-    load_indexed_files playlist
-    local playlist_len=${#playlist[@]}
+	local playlist=()
+	load_indexed_files playlist
+	local playlist_len=${#playlist[@]}
 
-        local missing
-        for ((i = 0; i < yt_json_len; ++i)); do
-            #local yt_title
-            #yt_title="$(jq -r ".[$i] | .title" <<< "$yt_json")" || bsl_die
-            local yt_id
-            yt_id="$(jq -r ".[$i] | .id" <<< "$yt_json")" || bsl_die
-            local yt_index
-            yt_index="$(jq -r ".[$i] | .playlist_index" <<< "$yt_json")" || bsl_die
-            local j=0
-            local matched=0
-            while ((j < playlist_len)); do
-                if [[ ${playlist[j]} =~ $INDEX_PREFIX_REGEX_V3 ]]; then
-                    if [[ "$yt_id" == "${BASH_REMATCH[ID_V3]}" ]]; then
-                        ((++matched))
-                    fi
-                fi
-                ((++j))
-            done
+	local missing
+	for ((i = 0; i < yt_json_len; ++i)); do
+		#local yt_title
+		#yt_title="$(jq -r ".[$i] | .title" <<< "$yt_json")" || bsl_die
+		local yt_id
+		yt_id="$(jq -r ".[$i] | .id" <<< "$yt_json")" || bsl_die
+		local yt_index
+		yt_index="$(jq -r ".[$i] | .playlist_index" <<< "$yt_json")" || bsl_die
+		local j=0
+		local matched=0
+		while ((j < playlist_len)); do
+			if [[ ${playlist[j]} =~ $INDEX_PREFIX_REGEX_V3 ]]; then
+				if [[ "$yt_id" == "${BASH_REMATCH[ID_V3]}" ]]; then
+					((++matched))
+				fi
+			fi
+			((++j))
+		done
 
-            if [[ $matched == 0 ]]; then
-                missing="$missing,$yt_index"
-            fi
-        done
+		if [[ $matched == 0 ]]; then
+			missing="$missing,$yt_index"
+		fi
+	done
 
-        bsl_is_empty "$missing" && bsl_die "No missing found."
+	bsl_is_empty "$missing" && bsl_die "No missing found."
 
-        # strip initial comma
-        items="-I ${missing:1}";
+		# strip initial comma
+		items="-I ${missing:1}";
 		# shellcheck disable=2086
 		yt-dlp                                                             \
-            --cookies-from-browser firefox                                 \
-            --embed-chapters                                               \
-            --remote-components ejs:github                                 \
-            -f "bestvideo+bestaudio/best"                                  \
-            $items -o "%(playlist_index)03d 00 [%(id)s] %(title)s.%(ext)s" \
-            "$link"
-    #PLAYER_PID=$!
-}
+			--cookies-from-browser firefox                                 \
+			--embed-chapters                                               \
+			--remote-components ejs:github                                 \
+			-f "bestvideo+bestaudio/best"                                  \
+			$items -o "%(playlist_index)03d 00 [%(id)s] %(title)s.%(ext)s" \
+			"$link"
+					#PLAYER_PID=$!
+				}
 
-store_link() {
-    if bsl_is_not_empty "$@"; then
-        echo "$@" > "./PLAYLIST_DOWNLOAD_LINK"
-    fi
-}
+				store_link() {
+					if bsl_is_not_empty "$@"; then
+						echo "$@" > "./PLAYLIST_DOWNLOAD_LINK"
+					fi
+				}
 
-main() {
-    local cmd="$1"
+				main() {
+					local cmd="$1"
 
-    preflight # setup & run checks
+					preflight # setup & run checks
 
-    #START_HELP
-    case "$cmd" in
-        play|p) # Start playing in the current directory. Optionally set playback rate.
-            shift
-            play "$@"
-            ;;
-        mark|m) # Marks the provided file as played.
-            shift
-            mark_watched "$@"
-            ;;
-        unmark|u) # Unmarks the last marked file.
-            shift
-            unmark_watched "$@"
-            ;;
-        list|l) # List playlist in working dir.
-            playlist_print
-            ;;
-        link) # Save playlist download link.
-            shift
-            store_link "$@"
-            ;;
-        download|d) # Downloads playlist with formatting.
-            shift
-            download "$@"
-            ;;
-        make|fix) # organize current dir into playlist.
-            make_playlist
-            ;;
-        move) # move item by index $1 to index $2 optionally move range e.g. 3-4 7
-            shift
-            move_item "$@"
-            ;;
-        reverse) # reverse playlist
-            reverse
-            ;;
-        help|h|--help|-h) # Shows this help page.
-            help_parse "$0"
-            ;;
+	#START_HELP
+	case "$cmd" in
+		play|p) # Start playing in the current directory. Optionally set playback rate.
+			shift
+			play "$@"
+			;;
+		mark|m) # Marks the provided file as played.
+			shift
+			mark_watched "$@"
+			;;
+		unmark|u) # Unmarks the last marked file.
+			shift
+			unmark_watched "$@"
+			;;
+		list|l) # List playlist in working dir.
+			playlist_print
+			;;
+		link) # Save playlist download link.
+			shift
+			store_link "$@"
+			;;
+		download|d) # Downloads playlist with formatting.
+			shift
+			download "$@"
+			;;
+		make|fix) # organize current dir into playlist.
+			make_playlist
+			;;
+		move) # move item by index $1 to index $2 optionally move range e.g. 3-4 7
+			shift
+			move_item "$@"
+			;;
+		reverse) # reverse playlist
+			reverse
+			;;
+		help|h|--help|-h) # Shows this help page.
+			help_parse "$0"
+			;;
 
-        *)
-            help_parse "$0"
-            ;;
-    esac
-    #END_HELP
+		*)
+			help_parse "$0"
+			;;
+	esac
+	#END_HELP
 
 
 }
