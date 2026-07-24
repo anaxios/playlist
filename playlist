@@ -4,11 +4,13 @@ set -e
 
 # shellcheck disable=2034
 bsl_CYAN="\033[1;96m"
+# shellcheck disable=2034
 bsl_RED="\033[0;91m"
 # shellcheck disable=2034
-bsl_CYAN="\033[1;96m"
-# shellcheck disable=2034
 bsl_GREEN="\033[0;92m"
+# shellcheck disable=2034
+bsl_STRIKE='\033[9m'
+# shellcheck disable=2034
 bsl_RESET='\033[0m'
 
 bsl_is_int() { [[ $1 =~ ^-?[1-9]+[0-9]?$ ]]; }
@@ -306,10 +308,11 @@ playlist_print() {
 			local watched
 			if is_watched "$video"; then
 				watched="W"
+				printf "${bsl_RED}${bsl_STRIKE}%3s %s${bsl_RESET}\n" "$((10#$index))" "${name%%.*}"
 			else
 				watched="-"
+				printf "%3s %s\n" "$((10#$index))" "${name%%.*}"
 			fi
-			echo "$index $watched$name"
 		fi
 	done
 }
