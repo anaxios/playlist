@@ -10,10 +10,10 @@ It has the format:
 ```
 <index> <bitmask> [<id>] <name of file>.<ext>
 ```
-index: The order the videos will play from 1-999. (It's fixed at 3 digits for now.)
-bitmask: A bitmask of whether the video has been watched. (Other masks are reserved for later use.)
-id: The UUID of the video given by YouTube.
-name of file: Self-explanatory.
+- index: The order the videos will play from 1-999. (It's fixed at 3 digits for now.)
+- bitmask: A bitmask of whether the video has been watched. (Other masks are reserved for later use.)
+- id: The UUID of the video given by YouTube.
+- name of file: Self-explanatory.
 ext: the format extention of the video.
 
 To download a playlist use the `link` sub-command to store the youtube playlist link into the `PLAYLIST_DOWNLOAD_LINK` file.
