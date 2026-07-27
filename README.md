@@ -5,9 +5,9 @@
 
 Playlist is very simple and folder based.
 It uses yt-dlp and VLC to download and play videos.
-A playlist is essential all the playable files in the current working directory with the specified format below.
+A playlist is essentially all the playable files in the current working directory with the specified metadata prepended to the file name.
 A playable file is any file VLC can play.
-All the metadata is stored in the file name.
+All the metadata is stored in the file name except for the playlist link.
 It has the format:
 
 ```
@@ -17,7 +17,7 @@ It has the format:
 - bitmask: A bitmask of whether the video has been watched. (Other masks are reserved for later use.)
 - id: The UUID of the video given by YouTube.
 - name of file: Self-explanatory.
-ext: the format extention of the video.
+- ext: the format extention of the video.
 
 To download a playlist use the `link` sub-command to store the YouTube playlist link into the `PLAYLIST_DOWNLOAD_LINK` file.
 
