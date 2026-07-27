@@ -1,5 +1,5 @@
-[!WARNING]
-This only works on Macos for now. Requires VLC & yt-dlp to be installed.
+> [!WARNING]
+> This only works on Macos for now. Requires VLC & yt-dlp to be installed.
 
 ## A simple YouTube playlist downloader and player in Bash
 
