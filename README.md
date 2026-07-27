@@ -1,8 +1,8 @@
-## A simple youtube playlist downloader and player in Bash
+## A simple YouTube playlist downloader and player in Bash
 
 Playlist is very simple and folder based.
 It uses yt-dlp and VLC to download and play videos.
-A playlist is essential all the playable files in the current working directory.
+A playlist is essential all the playable files in the current working directory with the specified format below.
 A playable file is any file VLC can play.
 All the metadata is stored in the file name.
 It has the format:
@@ -16,7 +16,7 @@ It has the format:
 - name of file: Self-explanatory.
 ext: the format extention of the video.
 
-To download a playlist use the `link` sub-command to store the youtube playlist link into the `PLAYLIST_DOWNLOAD_LINK` file.
+To download a playlist use the `link` sub-command to store the YouTube playlist link into the `PLAYLIST_DOWNLOAD_LINK` file.
 
 ```bash
 playlist link "https://youtube.com/playlist?list=PLdPwyUeH0mS566Y0YZ7oAGghzMgRlWTBf&si=ZtFh0qmKbTPnDXPg"
@@ -63,4 +63,29 @@ You can list the videos in a nicer format with the `list` sub-command.
 
 ```bash
 playlist list
+```
+
+A playlist can also be created from videos not downloaded from YouTube.
+This will add the required metadata to the file name. It adds the files in normal sorted order.
+
+```bash
+playlist make
+```
+
+You can easily change the order of the videos with the `move` sub-command.
+This will rename all the files in the proper order for you.
+
+```bash
+playlist move <from index> <to index>
+```
+It can also move a range of videos.
+
+```bash
+playlist move <start from index>-<end from index> <to index>
+```
+
+Many playlist on YouTube seem to be in reverse order. You can use the `reverse` sub-command to reverse the playlist.
+
+```bash
+playlists reverse
 ```
