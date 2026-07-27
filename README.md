@@ -19,26 +19,26 @@ It has the format:
 - name of file: Self-explanatory.
 - ext: the format extention of the video.
 
-To download a playlist use the `link` sub-command to store the YouTube playlist link into the `PLAYLIST_DOWNLOAD_LINK` file.
+To download a playlist first use the `link` sub-command to store the YouTube playlist link into the `PLAYLIST_DOWNLOAD_LINK` file.
 
 ```bash
 playlist link "https://youtube.com/playlist?list=PLdPwyUeH0mS566Y0YZ7oAGghzMgRlWTBf&si=ZtFh0qmKbTPnDXPg"
 ```
 
-To download the video you use the `download` sub-command. This sub-command will only play videos that are not marked as `watched`.
+To download the videos use the `download` sub-command. This sub-command will only play videos that are not marked as `watched`.
 
 ```bash
 playlist download
 ```
-To play the videos use the `play` sub-command in the folder the video files are in.
+To play the playlist use the `play` sub-command in the folder the playlist files are in.
 
 ```bash
 playlist play
 ```
 
-Videos are marked played once the play cursor reaches near the end of the video.
+Videos are automatically marked played once the play cursor reaches near the end of the video.
 
-You can also mark videos as watched with the `mark` sub-command.
+You can mark videos as 'watched' with the `mark` sub-command.
 
 ```bash
 playlist mark <index>
@@ -84,10 +84,10 @@ playlist move <from index> <to index>
 It can also move a range of videos.
 
 ```bash
-playlist move <start from index>-<end from index> <to index>
+playlist move <start index>-<end index> <to index>
 ```
 
-Many playlist on YouTube seem to be in reverse order. You can use the `reverse` sub-command to reverse the playlist.
+Many playlists on YouTube are in reverse order. You can use the `reverse` sub-command to easily reverse the playlist.
 
 ```bash
 playlists reverse
