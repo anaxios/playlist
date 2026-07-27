@@ -299,22 +299,22 @@ play() {
 }
 
 playlist_print() {
-	local playlist=()
-	load_indexed_files playlist
-	for video in "${playlist[@]}"; do
-		if [[ "$video" =~ $INDEX_PREFIX_REGEX_V3 ]]; then
-			local index="${BASH_REMATCH[INDEX_V3]}"
-			local name="${BASH_REMATCH[NAME_V3]}"
-			local watched
-			if is_watched "$video"; then
-				watched="W"
-				printf "${bsl_RED}${bsl_STRIKE}%3s %s${bsl_RESET}\n" "$((10#$index))" "${name%%.*}"
-			else
-				watched="-"
-				printf "%3s %s\n" "$((10#$index))" "${name%%.*}"
-			fi
-		fi
-	done
+    local playlist=()
+    load_indexed_files playlist
+    for video in "${playlist[@]}"; do
+        if [[ "$video" =~ $INDEX_PREFIX_REGEX_V3 ]]; then
+            local index="${BASH_REMATCH[INDEX_V3]}"
+            local name="${BASH_REMATCH[NAME_V3]}"
+            local watched
+            if is_watched "$video"; then
+                watched="W"
+                printf "${bsl_RED}${bsl_STRIKE}%3s %s${bsl_RESET}\n" "$((10#$index))" "${name%%.*}"
+            else
+                watched="-"
+                printf "%3s %s\n" "$((10#$index))" "${name%%.*}"
+            fi
+        fi
+    done
 }
 
 load_files() {
